@@ -70,6 +70,10 @@
     // class is theme-light or theme-dark, so match on the prefix.
     if ((f.getAttribute('src') || '') === PAGES.mobile) {
       css += 'html,body{margin:0}[class^="theme-"]{width:100vw!important;height:100vh!important;height:100dvh!important}';
+      // The login screen is a flex column inside a scroll container, but its children may
+      // shrink, so on a short screen the user list is squashed and clipped instead of the
+      // column scrolling. Stop the children shrinking so the container can scroll.
+      css += 'div:has(>.card.list)>*{flex-shrink:0}';
     }
     // In the phone frame on a desktop, hide classic scrollbars.
     if (document.body.classList.contains('phone')) {
