@@ -15,11 +15,12 @@
   // One app, two layouts: desktop on wide screens, mobile otherwise.
   // Override with ?v=desktop or ?v=mobile. Page stays at one URL.
   var f = document.getElementById('app');
+  var PAGES = { desktop: 'desktop.html', mobile: 'mobile.html' };
   var forced = new URLSearchParams(location.search).get('v');
+  if (!Object.prototype.hasOwnProperty.call(PAGES, forced)) forced = null;
   var mq = window.matchMedia('(min-width: 900px)');
   function pick() {
-    var v = forced || (mq.matches ? 'desktop' : 'mobile');
-    var src = v + '.html';
+    var src = PAGES[forced || (mq.matches ? 'desktop' : 'mobile')];
     if (f.getAttribute('src') !== src) f.setAttribute('src', src);
   }
   pick();
