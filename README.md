@@ -1,3 +1,4 @@
 # HMS Simplified
 
-Clickable mockup of the HMS-app prototype.
+Clickable HMS-app prototype: one app, with a desktop layout (width >= 900px) and a mobile layout.
+Force a layout with `?v=desktop` or `?v=mobile`.
