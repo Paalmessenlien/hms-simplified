@@ -5,20 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HMS Simplified</title>
 <style>
-  html,body{margin:0;height:100%;background:#faf9f5}
+  html,body{margin:0;height:100%;background:#faf9f5;background:var(--app-bg,#faf9f5)}
   body{display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
   #frame{width:100%;height:100%;overflow:hidden}
-  iframe{display:block;border:0;width:100%;height:100%;background:#faf9f5}
+  iframe{display:block;border:0;width:100%;height:100%;background:transparent}
   /* Mobile layout shown on a wide screen: phone-sized frame. */
-  body.phone{background:#e9e6dd}
+  body.phone{background:#e9e6dd;background:color-mix(in srgb,var(--app-bg,#faf9f5) 88%,#000)}
   /* The mobile app needs the full 844px height, so the frame keeps that size and is
      scaled down (--s, set from JS) when the window is shorter. */
   body.phone #frame{position:absolute;left:50%;top:50%;width:390px;height:844px;border-radius:28px;
     box-shadow:0 8px 32px rgba(0,0,0,.18);transform:translate(-50%,-50%) scale(var(--s,1))}
+  body.dark.phone{background:#09080b}
+  body.dark.phone #frame{box-shadow:0 0 0 1px #3a3441,0 8px 32px rgba(0,0,0,.6)}
   #toggle{position:fixed;right:16px;bottom:16px;z-index:10;display:none;align-items:center;gap:8px;
     padding:10px 16px;border:1px solid #d9d5c8;border-radius:999px;background:#fff;color:#1f1e1d;
     font-family:inherit;font-size:14px;font-weight:600;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
   #toggle:hover{background:#f3f0e8}
+  body.dark #toggle{background:#2a2530;color:#f2eff5;border-color:#3d3745;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  body.dark #toggle:hover{background:#363040}
   #toggle:focus-visible{outline:3px solid #6b3f8f;outline-offset:2px}
   #toggle svg{width:18px;height:18px;flex:none}
   @media (min-width:900px){#toggle{display:inline-flex}}
@@ -54,25 +58,54 @@
     btn.dataset.target = other;
   }
 
-  // In the phone frame, hide the app's classic desktop scrollbars (same-origin iframe).
+  // Same-origin iframe tweaks. The pages replace their whole <html> element after
+  // the load event, which throws away anything injected earlier, so a
+  // MutationObserver re-applies the style whenever it goes missing. It also copies
+  // the app's current theme (light/dark) to this wrapper (page background, button).
+  var obs = null;
+  function cssFor() {
+    var css = '';
+    // mobile.html is drawn on a fixed 390x844 canvas; make it fill whatever viewport
+    // it is in (a real phone of any width, or the 390x844 phone frame). The root's
+    // class is theme-light or theme-dark, so match on the prefix.
+    if ((f.getAttribute('src') || '') === PAGES.mobile) {
+      css += 'html,body{margin:0}[class^="theme-"]{width:100vw!important;height:100vh!important;height:100dvh!important}';
+    }
+    // In the phone frame on a desktop, hide classic scrollbars.
+    if (document.body.classList.contains('phone')) {
+      css += '*{scrollbar-width:none}*::-webkit-scrollbar{display:none}';
+    }
+    return css;
+  }
   f.addEventListener('load', function () {
-    try {
-      var d = f.contentDocument;
-      if (!d) return;
-      var css = '';
-      // mobile.html is drawn on a fixed 390x844 canvas; make it fill whatever
-      // viewport it is in (real phones of any width, or the 390x844 phone frame).
-      if ((f.getAttribute('src') || '') === PAGES.mobile) {
-        css += 'html,body{margin:0;overflow:hidden}.theme-light{width:100vw!important;height:100vh!important;height:100dvh!important}';
-      }
-      if (document.body.classList.contains('phone')) {
-        css += '*{scrollbar-width:none}*::-webkit-scrollbar{display:none}';
-      }
-      if (!css) return;
-      var st = d.createElement('style');
-      st.textContent = css;
-      d.head.appendChild(st);
-    } catch (e) {}
+    var d;
+    try { d = f.contentDocument; } catch (e) { return; }
+    if (!d) return;
+    if (obs) obs.disconnect();
+    var queued = 0;
+    function apply() {
+      queued = 0;
+      try {
+        if (!d.head) return;
+        var css = cssFor();
+        var st = d.getElementById('hms-wrapper-fix');
+        if (css && !st) {
+          st = d.createElement('style');
+          st.id = 'hms-wrapper-fix';
+          st.textContent = css;
+          d.head.appendChild(st);
+        }
+        var root = d.querySelector('[class^="theme-"]');
+        if (root) {
+          var bg = f.contentWindow.getComputedStyle(root).backgroundColor;
+          document.documentElement.style.setProperty('--app-bg', bg);
+          document.body.classList.toggle('dark', /dark/.test(root.className));
+        }
+      } catch (e) {}
+    }
+    obs = new MutationObserver(function () { if (!queued) queued = requestAnimationFrame(apply); });
+    obs.observe(d, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    apply();
   });
 
   function fit() {
