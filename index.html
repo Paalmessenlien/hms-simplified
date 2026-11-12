@@ -58,9 +58,19 @@
   f.addEventListener('load', function () {
     try {
       var d = f.contentDocument;
-      if (!d || !document.body.classList.contains('phone')) return;
+      if (!d) return;
+      var css = '';
+      // mobile.html is drawn on a fixed 390x844 canvas; make it fill whatever
+      // viewport it is in (real phones of any width, or the 390x844 phone frame).
+      if ((f.getAttribute('src') || '') === PAGES.mobile) {
+        css += 'html,body{margin:0;overflow:hidden}.theme-light{width:100vw!important;height:100vh!important;height:100dvh!important}';
+      }
+      if (document.body.classList.contains('phone')) {
+        css += '*{scrollbar-width:none}*::-webkit-scrollbar{display:none}';
+      }
+      if (!css) return;
       var st = d.createElement('style');
-      st.textContent = '*{scrollbar-width:none}*::-webkit-scrollbar{display:none}';
+      st.textContent = css;
       d.head.appendChild(st);
     } catch (e) {}
   });
