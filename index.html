@@ -6,25 +6,79 @@
 <title>HMS Simplified</title>
 <style>
   html,body{margin:0;height:100%;background:#faf9f5}
-  iframe{display:block;border:0;width:100%;height:100%}
+  body{display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+  #frame{width:100%;height:100%;overflow:hidden}
+  iframe{display:block;border:0;width:100%;height:100%;background:#faf9f5}
+  /* Mobile layout shown on a wide screen: phone-sized frame. */
+  body.phone{background:#e9e6dd}
+  /* The mobile app needs the full 844px height, so the frame keeps that size and is
+     scaled down (--s, set from JS) when the window is shorter. */
+  body.phone #frame{position:absolute;left:50%;top:50%;width:390px;height:844px;border-radius:28px;
+    box-shadow:0 8px 32px rgba(0,0,0,.18);transform:translate(-50%,-50%) scale(var(--s,1))}
+  #toggle{position:fixed;right:16px;bottom:16px;z-index:10;display:none;align-items:center;gap:8px;
+    padding:10px 16px;border:1px solid #d9d5c8;border-radius:999px;background:#fff;color:#1f1e1d;
+    font-family:inherit;font-size:14px;font-weight:600;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  #toggle:hover{background:#f3f0e8}
+  #toggle:focus-visible{outline:3px solid #6b3f8f;outline-offset:2px}
+  #toggle svg{width:18px;height:18px;flex:none}
+  @media (min-width:900px){#toggle{display:inline-flex}}
 </style>
 </head>
 <body>
-<iframe id="app" title="HMS Simplified"></iframe>
+<div id="frame"><iframe id="app" title="HMS Simplified"></iframe></div>
+<button id="toggle" type="button"></button>
 <script>
   // One app, two layouts: desktop on wide screens, mobile otherwise.
-  // Override with ?v=desktop or ?v=mobile. Page stays at one URL.
-  var f = document.getElementById('app');
+  // The button (wide screens only) switches between them; ?v=desktop|mobile
+  // sets the starting layout. Only the two known values are accepted.
   var PAGES = { desktop: 'desktop.html', mobile: 'mobile.html' };
+  var ICONS = {
+    mobile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+    desktop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>'
+  };
+  var f = document.getElementById('app');
+  var btn = document.getElementById('toggle');
+  var mq = window.matchMedia('(min-width: 900px)');
   var forced = new URLSearchParams(location.search).get('v');
   if (!Object.prototype.hasOwnProperty.call(PAGES, forced)) forced = null;
-  var mq = window.matchMedia('(min-width: 900px)');
-  function pick() {
-    var src = PAGES[forced || (mq.matches ? 'desktop' : 'mobile')];
+
+  function render() {
+    var wide = mq.matches;
+    var view = wide ? (forced || 'desktop') : 'mobile'; // narrow screens always get mobile
+    var src = PAGES[view];
     if (f.getAttribute('src') !== src) f.setAttribute('src', src);
+    document.body.classList.toggle('phone', wide && view === 'mobile');
+    var other = view === 'desktop' ? 'mobile' : 'desktop';
+    btn.innerHTML = ICONS[other] + (other === 'mobile' ? 'Mobilvisning' : 'Desktopvisning');
+    btn.setAttribute('aria-label', other === 'mobile' ? 'Bytt til mobilvisning' : 'Bytt til desktopvisning');
+    btn.dataset.target = other;
   }
-  pick();
-  if (!forced) mq.addEventListener('change', pick);
+
+  // In the phone frame, hide the app's classic desktop scrollbars (same-origin iframe).
+  f.addEventListener('load', function () {
+    try {
+      var d = f.contentDocument;
+      if (!d || !document.body.classList.contains('phone')) return;
+      var st = d.createElement('style');
+      st.textContent = '*{scrollbar-width:none}*::-webkit-scrollbar{display:none}';
+      d.head.appendChild(st);
+    } catch (e) {}
+  });
+
+  function fit() {
+    var s = Math.min(1, (window.innerHeight - 48) / 844);
+    document.documentElement.style.setProperty('--s', Math.max(0.4, s).toFixed(3));
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  btn.addEventListener('click', function () {
+    forced = btn.dataset.target;
+    try { history.replaceState(null, '', '?v=' + forced); } catch (e) {}
+    render();
+  });
+  mq.addEventListener('change', render);
+  render();
 </script>
 </body>
 </html>
